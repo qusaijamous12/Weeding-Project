@@ -14,9 +14,32 @@
   <title>وِصال | دعوات الزفاف</title>
   <style>
     html, body { margin: 0; background-color: #f9f7f1; }
+    #wisal-loading {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-content: center;
+      gap: .5rem;
+      text-align: center;
+      font: 1rem system-ui, sans-serif;
+      color: #3f5347;
+    }
+    #wisal-loading strong { font-size: 1.5rem; color: #26382a; }
   </style>
 </head>
 <body>
+  <div id="wisal-loading" role="status">
+    <strong>وِصال</strong>
+    <span>جارٍ التحميل…</span>
+  </div>
+  <script>
+    const loading = document.getElementById('wisal-loading');
+    if (window.location.pathname.startsWith('/i/') ||
+        window.location.hash.startsWith('#/i/')) {
+      loading.lastElementChild.textContent = 'جارٍ فتح الدعوة…';
+    }
+    window.addEventListener('flutter-first-frame', () => loading.remove(), { once: true });
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

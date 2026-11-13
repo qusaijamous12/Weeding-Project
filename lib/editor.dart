@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'drafts.dart';
 import 'invitation.dart';
 import 'invitation_view.dart';
+import 'shared_invitation.dart';
 import 'studio_theme.dart';
 
 enum _Field {
@@ -46,6 +47,7 @@ class _EditorState extends State<Editor> {
   late final String _draftId;
   late InvitationStyle _style;
   late DateTime _date;
+  bool _publishing = false;
 
   @override
   void initState() {
@@ -162,7 +164,18 @@ class _EditorState extends State<Editor> {
       return;
     }
     final invitation = _invitation;
-    final link = invitation.shareUri(Uri.base).toString();
+    setState(() => _publishing = true);
+    final Uri shareUri;
+    try {
+      shareUri = await SharedInvitation.publish(invitation, Uri.base);
+    } on Exception {
+      _feedback('تعذّر إنشاء رابط الدعوة. حاولوا مرة أخرى.');
+      return;
+    } finally {
+      if (mounted) setState(() => _publishing = false);
+    }
+    if (!mounted) return;
+    final link = shareUri.toString();
     final message = 'دعوة زفاف ${invitation.couple}\n$link';
     await showDialog<void>(
       context: context,
@@ -178,6 +191,11 @@ class _EditorState extends State<Editor> {
               const SizedBox(height: 9),
               const Text(
                 'يعرض الرابط هذه النسخة من الدعوة. إذا عدّلتم التفاصيل، شاركوا رابطًا جديدًا.',
+              ),
+              const SizedBox(height: 9),
+              Directionality(
+                textDirection: TextDirection.ltr,
+                child: SelectableText(link),
               ),
               if (Uri.base.host == 'localhost' ||
                   Uri.base.host == '127.0.0.1') ...[
@@ -343,9 +361,16 @@ class _EditorState extends State<Editor> {
             runSpacing: 9,
             children: [
               FilledButton.icon(
-                onPressed: _share,
-                icon: const Icon(Icons.link_rounded, size: 18),
-                label: const Text('مشاركة الدعوة'),
+                onPressed: _publishing ? null : _share,
+                icon: _publishing
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.link_rounded, size: 18),
+                label: Text(
+                  _publishing ? 'جارٍ إنشاء الرابط…' : 'مشاركة الدعوة',
+                ),
               ),
               OutlinedButton.icon(
                 onPressed: _save,

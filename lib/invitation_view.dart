@@ -124,39 +124,32 @@ class InvitationCover extends StatelessWidget {
                         ),
                       ],
                       SizedBox(height: thumbnail ? 7 : 17),
-                      MotionReveal(
-                        delay: thumbnail
-                            ? Duration.zero
-                            : const Duration(milliseconds: 250),
-                        distance: 14,
-                        child: Wrap(
-                          direction:
-                              !thumbnail && style == InvitationStyle.night
-                              ? Axis.vertical
-                              : Axis.horizontal,
-                          alignment: WrapAlignment.center,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          spacing: thumbnail ? 7 : 14,
-                          children: [
-                            Text(
-                              names.first,
-                              textAlign: TextAlign.center,
-                              style: displayStyle(headingSize, color: coverInk),
+                      Wrap(
+                        direction: !thumbnail && style == InvitationStyle.night
+                            ? Axis.vertical
+                            : Axis.horizontal,
+                        alignment: WrapAlignment.center,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: thumbnail ? 7 : 14,
+                        children: [
+                          Text(
+                            names.first,
+                            textAlign: TextAlign.center,
+                            style: displayStyle(headingSize, color: coverInk),
+                          ),
+                          Text(
+                            'و',
+                            style: displayStyle(
+                              headingSize * .57,
+                              color: coverAccent,
                             ),
-                            Text(
-                              'و',
-                              style: displayStyle(
-                                headingSize * .57,
-                                color: coverAccent,
-                              ),
-                            ),
-                            Text(
-                              names.last,
-                              textAlign: TextAlign.center,
-                              style: displayStyle(headingSize, color: coverInk),
-                            ),
-                          ],
-                        ),
+                          ),
+                          Text(
+                            names.last,
+                            textAlign: TextAlign.center,
+                            style: displayStyle(headingSize, color: coverInk),
+                          ),
+                        ],
                       ),
                       SizedBox(height: thumbnail ? 4 : 14),
                       Text(
@@ -258,24 +251,22 @@ class _InvitationContentState extends State<InvitationContent> {
           if (style.photoCover)
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 46, 24, 24),
-              child: MotionReveal(
-                child: Column(
-                  children: [
-                    _Flourish(color: style.accent),
-                    const SizedBox(height: 12),
-                    Text(
-                      'أهلًا وسهلًا بكم',
-                      textAlign: TextAlign.center,
-                      style: displayStyle(36, color: style.ink),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'يسعدنا حضوركم ومشاركتكم فرحتنا',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: style.ink),
-                    ),
-                  ],
-                ),
+              child: Column(
+                children: [
+                  _Flourish(color: style.accent),
+                  const SizedBox(height: 12),
+                  Text(
+                    'أهلًا وسهلًا بكم',
+                    textAlign: TextAlign.center,
+                    style: displayStyle(36, color: style.ink),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'يسعدنا حضوركم ومشاركتكم فرحتنا',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: style.ink),
+                  ),
+                ],
               ),
             ),
           if (invitation.hasFamilies)
@@ -312,17 +303,17 @@ class _InvitationContentState extends State<InvitationContent> {
               style: style,
               title: 'الوقت المتبقي للزفاف',
               icon: Icons.hourglass_bottom_rounded,
-              child: _Countdown(instant: invitation.instant, style: style),
+              child: RepaintBoundary(
+                child: _Countdown(instant: invitation.instant, style: style),
+              ),
             ),
             Padding(
               key: _details,
               padding: const EdgeInsets.fromLTRB(20, 30, 20, 13),
-              child: MotionReveal(
-                child: Text(
-                  'تفاصيل الحفل',
-                  textAlign: TextAlign.center,
-                  style: displayStyle(41, color: style.ink),
-                ),
+              child: Text(
+                'تفاصيل الحفل',
+                textAlign: TextAlign.center,
+                style: displayStyle(41, color: style.ink),
               ),
             ),
             _Section(
@@ -358,7 +349,12 @@ class _InvitationContentState extends State<InvitationContent> {
                     style: TextStyle(color: style.ink, fontSize: 13),
                   ),
                   const SizedBox(height: 22),
-                  _Countdown(instant: invitation.instant, style: style),
+                  RepaintBoundary(
+                    child: _Countdown(
+                      instant: invitation.instant,
+                      style: style,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -448,30 +444,28 @@ class _Section extends StatelessWidget {
       size: 21,
       color: style.photoCover ? style.paper : style.accent,
     );
-    final content = MotionReveal(
-      child: Column(
-        children: [
-          if (style.photoCover)
-            Container(
-              padding: const EdgeInsets.all(11),
-              decoration: BoxDecoration(
-                color: style.accent,
-                borderRadius: BorderRadius.circular(11),
-              ),
-              child: iconWidget,
-            )
-          else
-            iconWidget,
-          const SizedBox(height: 10),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: displayStyle(34, color: style.ink),
-          ),
-          const SizedBox(height: 14),
-          child,
-        ],
-      ),
+    final content = Column(
+      children: [
+        if (style.photoCover)
+          Container(
+            padding: const EdgeInsets.all(11),
+            decoration: BoxDecoration(
+              color: style.accent,
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: iconWidget,
+          )
+        else
+          iconWidget,
+        const SizedBox(height: 10),
+        Text(
+          title,
+          textAlign: TextAlign.center,
+          style: displayStyle(34, color: style.ink),
+        ),
+        const SizedBox(height: 14),
+        child,
+      ],
     );
     if (style.photoCover) {
       return Center(

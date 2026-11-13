@@ -11,6 +11,8 @@ import 'drafts.dart';
 import 'firebase_options.dart';
 import 'invitation.dart';
 import 'invitation_view.dart';
+import 'shared_guest_page.dart';
+import 'shared_invitation.dart';
 import 'sign_in.dart';
 import 'studio.dart';
 import 'studio_theme.dart';
@@ -26,6 +28,17 @@ Future<void> main() async {
   });
   final address = Uri.base;
   final drafts = Drafts();
+  if (SharedInvitation.isLink(address)) {
+    final id = SharedInvitation.idFromLink(address);
+    runApp(
+      WisalApp(
+        drafts: drafts,
+        invalidLink: id == null,
+        loadInvitation: id == null ? null : () => _openSharedInvitation(id),
+      ),
+    );
+    return;
+  }
   if (address.fragment.startsWith(Invitation.linkPrefix)) {
     final invitation = Invitation.fromLink(address);
     runApp(
@@ -49,6 +62,14 @@ Future<void> main() async {
       content: (onSignOut) => WisalApp(drafts: drafts, onSignOut: onSignOut),
     ),
   );
+}
+
+Future<Invitation?> _openSharedInvitation(String id) async {
+  final app = await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  ).timeout(const Duration(seconds: 15));
+  unawaited(_initializeAnalytics(app));
+  return SharedInvitation.open(id);
 }
 
 Future<void> _initializeGuestAnalytics() async {
@@ -75,7 +96,9 @@ Future<void> _initializeAnalytics(FirebaseApp app) async {
             scheme: address.scheme,
             host: address.host,
             port: address.hasPort ? address.port : null,
-            path: address.path,
+            path: SharedInvitation.isLink(address)
+                ? Invitation.linkPrefix
+                : address.path,
           ).toString(),
           'page_title': 'وِصال | دعوات الزفاف',
           'page_referrer': '',
@@ -228,11 +251,13 @@ class WisalApp extends StatelessWidget {
     required this.drafts,
     this.invitation,
     this.invalidLink = false,
+    this.loadInvitation,
     this.onSignOut,
   });
   final Drafts drafts;
   final Invitation? invitation;
   final bool invalidLink;
+  final Future<Invitation?> Function()? loadInvitation;
   final Future<void> Function()? onSignOut;
 
   @override
@@ -244,7 +269,8 @@ class WisalApp extends StatelessWidget {
     supportedLocales: const [Locale('ar', 'JO')],
     localizationsDelegates: GlobalMaterialLocalizations.delegates,
     routes: {'/': _landingPage},
-    onGenerateInitialRoutes: invitation != null || invalidLink
+    onGenerateInitialRoutes:
+        invitation != null || invalidLink || loadInvitation != null
         ? (routeName) => [
             MaterialPageRoute<void>(
               settings: RouteSettings(name: routeName),
@@ -255,6 +281,7 @@ class WisalApp extends StatelessWidget {
   );
 
   Widget _landingPage(BuildContext context) {
+    if (loadInvitation case final load?) return SharedGuestPage(load: load);
     if (invitation case final invite?) return GuestPage(invitation: invite);
     if (invalidLink) {
       return const Scaffold(body: Center(child: Text('رابط الدعوة غير صالح.')));

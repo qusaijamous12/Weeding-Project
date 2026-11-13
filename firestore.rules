@@ -1,0 +1,32 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /sharedInvitations/{id} {
+      allow get: if id.matches('^[A-Za-z0-9]{20}$');
+      allow create: if request.auth != null
+        && request.auth.token.firebase.sign_in_provider == 'password'
+        && id.matches('^[A-Za-z0-9]{20}$')
+        && validInvitation(request.resource.data);
+    }
+
+    function validInvitation(data) {
+      return data.keys().hasOnly([
+          'v', 'style', 'groom', 'bride', 'groomFather', 'groomMother',
+          'brideFather', 'brideMother', 'date', 'venue', 'city', 'mapLink', 'message'
+        ])
+        && data.v == 1
+        && data.style in ['olive', 'night', 'rose', 'jasmine', 'candlelight']
+        && data.groom is string && data.groom.size() > 0 && data.groom.size() <= 1024
+        && data.bride is string && data.bride.size() > 0 && data.bride.size() <= 1024
+        && data.groomFather is string && data.groomFather.size() <= 1024
+        && data.groomMother is string && data.groomMother.size() <= 1024
+        && data.brideFather is string && data.brideFather.size() <= 1024
+        && data.brideMother is string && data.brideMother.size() <= 1024
+        && data.date is string && data.date.size() <= 40
+        && data.venue is string && data.venue.size() > 0 && data.venue.size() <= 1024
+        && data.city is string && data.city.size() > 0 && data.city.size() <= 1024
+        && data.mapLink is string && data.mapLink.size() <= 4096
+        && data.message is string && data.message.size() <= 4096;
+    }
+  }
+}
