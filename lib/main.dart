@@ -25,27 +25,42 @@ Future<void> main() async {
     }
   });
   final address = Uri.base;
-  final invitation = Invitation.fromLink(address);
-  final invalidLink =
-      address.fragment.startsWith(Invitation.linkPrefix) && invitation == null;
   final drafts = Drafts();
-  if (invitation == null && !invalidLink) {
-    try {
-      await drafts.load();
-    } on Exception {
-      // The editor and guest links still work if browser storage is disabled.
-    }
+  if (address.fragment.startsWith(Invitation.linkPrefix)) {
+    final invitation = Invitation.fromLink(address);
+    runApp(
+      WisalApp(
+        drafts: drafts,
+        invitation: invitation,
+        invalidLink: invitation == null,
+      ),
+    );
+    unawaited(_initializeGuestAnalytics());
+    return;
+  }
+
+  try {
+    await drafts.load();
+  } on Exception {
+    // The editor can open when browser storage is disabled.
   }
   runApp(
     _FirebaseEntry(
-      content: (onSignOut) => WisalApp(
-        drafts: drafts,
-        invitation: invitation,
-        invalidLink: invalidLink,
-        onSignOut: onSignOut,
-      ),
+      content: (onSignOut) => WisalApp(drafts: drafts, onSignOut: onSignOut),
     ),
   );
+}
+
+Future<void> _initializeGuestAnalytics() async {
+  if (!kIsWeb) return;
+  try {
+    final app = await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    await _initializeAnalytics(app);
+  } on Exception catch (error) {
+    debugPrint('Firebase services unavailable (${error.runtimeType}).');
+  }
 }
 
 Future<void> _initializeAnalytics(FirebaseApp app) async {
@@ -163,7 +178,7 @@ class AuthGate extends StatelessWidget {
   );
 }
 
-// Keep the sign-in view outside the app navigator so the guest URL is preserved.
+// Keep the sign-in view outside the studio navigator.
 Widget _authShell(Widget content) => MaterialApp(
   key: const ValueKey('authentication'),
   title: 'وِصال | دعوات الزفاف',
@@ -228,25 +243,22 @@ class WisalApp extends StatelessWidget {
     locale: const Locale('ar', 'JO'),
     supportedLocales: const [Locale('ar', 'JO')],
     localizationsDelegates: GlobalMaterialLocalizations.delegates,
-    routes: {'/': (_) => Studio(drafts: drafts, onSignOut: onSignOut)},
+    routes: {'/': _landingPage},
     onGenerateInitialRoutes: invitation != null || invalidLink
         ? (routeName) => [
             MaterialPageRoute<void>(
               settings: RouteSettings(name: routeName),
-              builder: (_) => switch (invitation) {
-                final invite? => GuestPage(
-                  invitation: invite,
-                  onSignOut: onSignOut,
-                ),
-                null => Scaffold(
-                  appBar: onSignOut == null
-                      ? null
-                      : AppBar(actions: [SignOutButton(onSignOut: onSignOut!)]),
-                  body: const Center(child: Text('رابط الدعوة غير صالح.')),
-                ),
-              },
+              builder: _landingPage,
             ),
           ]
         : null,
   );
+
+  Widget _landingPage(BuildContext context) {
+    if (invitation case final invite?) return GuestPage(invitation: invite);
+    if (invalidLink) {
+      return const Scaffold(body: Center(child: Text('رابط الدعوة غير صالح.')));
+    }
+    return Studio(drafts: drafts, onSignOut: onSignOut);
+  }
 }

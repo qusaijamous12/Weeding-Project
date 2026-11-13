@@ -58,49 +58,48 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
-  testWidgets(
-    'invitation links require a session and sign-out locks them again',
-    (tester) async {
-      final sessions = StreamController<String?>(sync: true);
-      addTearDown(sessions.close);
-      final invitation = Invitation.example(InvitationStyle.olive);
-      await tester.pumpWidget(
-        AuthGate(
-          sessions: sessions.stream,
-          onSignIn: (email, password) async {
-            expect(email, 'guest@example.com');
-            expect(password, 'test-password');
-            sessions.add('guest');
-          },
-          onSignOut: () async => sessions.add(null),
-          onRetry: () {},
-          content: (signOut) => WisalApp(
-            drafts: Drafts(),
-            invitation: invitation,
-            onSignOut: signOut,
-          ),
-        ),
-      );
-      expect(find.byType(InvitationCover), findsNothing);
-      sessions.add(null);
-      await tester.pumpAndSettle();
-      expect(find.text('تسجيل الدخول'), findsOneWidget);
-      expect(find.byType(InvitationCover), findsNothing);
+  testWidgets('the studio requires a session and sign-out locks it again', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 950);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
 
-      final fields = find.byType(TextFormField);
-      await tester.enterText(fields.at(0), 'guest@example.com');
-      await tester.enterText(fields.at(1), 'test-password');
-      await tester.tap(find.text('دخول'));
-      await tester.pumpAndSettle();
-      expect(find.byType(InvitationCover), findsOneWidget);
+    final sessions = StreamController<String?>(sync: true);
+    addTearDown(sessions.close);
+    await tester.pumpWidget(
+      AuthGate(
+        sessions: sessions.stream,
+        onSignIn: (email, password) async {
+          expect(email, 'guest@example.com');
+          expect(password, 'test-password');
+          sessions.add('guest');
+        },
+        onSignOut: () async => sessions.add(null),
+        onRetry: () {},
+        content: (signOut) => WisalApp(drafts: Drafts(), onSignOut: signOut),
+      ),
+    );
+    expect(find.text('معرض التصاميم'), findsNothing);
+    sessions.add(null);
+    await tester.pumpAndSettle();
+    expect(find.text('تسجيل الدخول'), findsOneWidget);
+    expect(find.text('معرض التصاميم'), findsNothing);
 
-      await tester.tap(find.byIcon(Icons.logout_rounded));
-      await tester.pumpAndSettle();
-      expect(find.text('تسجيل الدخول'), findsOneWidget);
-      expect(find.byType(InvitationCover), findsNothing);
-      await tester.pumpWidget(const SizedBox.shrink());
-    },
-  );
+    final fields = find.byType(TextFormField);
+    await tester.enterText(fields.at(0), 'guest@example.com');
+    await tester.enterText(fields.at(1), 'test-password');
+    await tester.tap(find.text('دخول'));
+    await tester.pumpAndSettle();
+    expect(find.text('معرض التصاميم'), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.logout_rounded));
+    await tester.pumpAndSettle();
+    expect(find.text('تسجيل الدخول'), findsOneWidget);
+    expect(find.text('معرض التصاميم'), findsNothing);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
 
   test('guest link preserves Arabic details, location and Jordan time', () {
     const map = 'https://maps.app.goo.gl/test';

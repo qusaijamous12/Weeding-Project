@@ -6,7 +6,6 @@ import 'package:url_launcher/url_launcher.dart';
 import 'invitation.dart';
 import 'motion.dart';
 import 'studio_theme.dart';
-import 'sign_in.dart';
 
 class InvitationCover extends StatelessWidget {
   const InvitationCover({
@@ -651,22 +650,18 @@ class GuestPage extends StatelessWidget {
     required this.invitation,
     this.onChoose,
     this.preview = false,
-    this.onSignOut,
   });
   final Invitation invitation;
   final VoidCallback? onChoose;
   final bool preview;
-  final Future<void> Function()? onSignOut;
 
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: Color.lerp(invitation.style.paper, canvas, .16),
-    appBar: preview || onSignOut != null
+    appBar: preview
         ? AppBar(
-            title: Text(preview ? 'معاينة الدعوة' : 'وِصال'),
+            title: const Text('معاينة الدعوة'),
             actions: [
-              if (onSignOut case final signOut?)
-                SignOutButton(onSignOut: signOut),
               if (onChoose != null)
                 Padding(
                   padding: const EdgeInsetsDirectional.only(end: 15),
