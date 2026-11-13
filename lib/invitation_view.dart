@@ -1,11 +1,12 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'invitation.dart';
 import 'motion.dart';
 import 'studio_theme.dart';
+import 'sign_in.dart';
 
 class InvitationCover extends StatelessWidget {
   const InvitationCover({
@@ -13,15 +14,21 @@ class InvitationCover extends StatelessWidget {
     required this.invitation,
     this.thumbnail = false,
     this.onDetails,
+    this.viewportHeight,
   });
 
   final Invitation invitation;
   final bool thumbnail;
   final VoidCallback? onDetails;
+  final double? viewportHeight;
 
   @override
   Widget build(BuildContext context) {
     final style = invitation.style;
+    final coverInk = style.photoCover ? const Color(0xFFFFFBF1) : style.ink;
+    final coverAccent = style.photoCover
+        ? const Color(0xFFFFE8BE)
+        : style.accent;
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
@@ -33,14 +40,18 @@ class InvitationCover extends StatelessWidget {
         return ConstrainedBox(
           constraints: BoxConstraints(
             minWidth: width,
-            minHeight: thumbnail ? 242 : (width * .99).clamp(365.0, 610.0),
+            minHeight: thumbnail
+                ? 242
+                : style.photoCover && viewportHeight != null
+                ? viewportHeight!
+                : (width * .99).clamp(365.0, 610.0),
           ),
           child: Stack(
             alignment: Alignment.center,
             children: [
               Positioned.fill(
                 child: ColoredBox(
-                  color: style.paper,
+                  color: style.photoCover ? ink : style.paper,
                   child: AnimatedSwitcher(
                     duration: reduceMotion(context)
                         ? Duration.zero
@@ -58,6 +69,23 @@ class InvitationCover extends StatelessWidget {
                   ),
                 ),
               ),
+              if (style.photoCover)
+                const Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Color(0x300A1014),
+                          Color(0xBF0A1014),
+                          Color(0xB50A1014),
+                        ],
+                        stops: [0, .48, 1],
+                      ),
+                    ),
+                  ),
+                ),
               Padding(
                 padding: EdgeInsets.symmetric(
                   horizontal: width * (thumbnail ? .14 : .18),
@@ -71,15 +99,15 @@ class InvitationCover extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       if (style == InvitationStyle.night)
-                        Seal(color: style.accent, size: thumbnail ? 25 : 43)
+                        Seal(color: coverAccent, size: thumbnail ? 25 : 43)
                       else
-                        _Flourish(color: style.accent),
+                        _Flourish(color: coverAccent),
                       SizedBox(height: thumbnail ? 8 : 20),
                       Text(
                         'دعوة زفاف',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: style.ink,
+                          color: coverInk,
                           fontSize: thumbnail ? 11 : 14,
                           fontWeight: FontWeight.w600,
                         ),
@@ -90,7 +118,7 @@ class InvitationCover extends StatelessWidget {
                           'بكل محبة ندعوكم لمشاركتنا فرحة زفافنا',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            color: style.ink,
+                            color: coverInk,
                             fontSize: 14,
                             height: 1.7,
                           ),
@@ -114,25 +142,19 @@ class InvitationCover extends StatelessWidget {
                             Text(
                               names.first,
                               textAlign: TextAlign.center,
-                              style: displayStyle(
-                                headingSize,
-                                color: style.ink,
-                              ),
+                              style: displayStyle(headingSize, color: coverInk),
                             ),
                             Text(
                               'و',
                               style: displayStyle(
                                 headingSize * .57,
-                                color: style.accent,
+                                color: coverAccent,
                               ),
                             ),
                             Text(
                               names.last,
                               textAlign: TextAlign.center,
-                              style: displayStyle(
-                                headingSize,
-                                color: style.ink,
-                              ),
+                              style: displayStyle(headingSize, color: coverInk),
                             ),
                           ],
                         ),
@@ -142,7 +164,7 @@ class InvitationCover extends StatelessWidget {
                         jordanDate(invitation.date, includeDay: !thumbnail),
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: style.ink,
+                          color: coverInk,
                           fontSize: thumbnail ? 10 : 14,
                           fontWeight: FontWeight.w600,
                           height: 1.75,
@@ -158,8 +180,13 @@ class InvitationCover extends StatelessWidget {
                           ),
                           label: const Text('تفاصيل الحفل'),
                           style: TextButton.styleFrom(
-                            foregroundColor: style.ink,
-                            backgroundColor: style.paper.withValues(alpha: .78),
+                            foregroundColor: coverInk,
+                            backgroundColor: style.photoCover
+                                ? const Color(0x440A1014)
+                                : style.paper.withValues(alpha: .78),
+                            side: style.photoCover
+                                ? const BorderSide(color: Color(0x88FFFBF1))
+                                : null,
                           ),
                         ),
                       ],
@@ -180,10 +207,12 @@ class InvitationContent extends StatefulWidget {
     super.key,
     required this.invitation,
     this.interactive = true,
+    this.viewportHeight,
   });
 
   final Invitation invitation;
   final bool interactive;
+  final double? viewportHeight;
 
   @override
   State<InvitationContent> createState() => _InvitationContentState();
@@ -211,6 +240,7 @@ class _InvitationContentState extends State<InvitationContent> {
         children: [
           InvitationCover(
             invitation: invitation,
+            viewportHeight: widget.viewportHeight,
             onDetails: widget.interactive
                 ? () {
                     final target = _details.currentContext;
@@ -226,6 +256,29 @@ class _InvitationContentState extends State<InvitationContent> {
                   }
                 : null,
           ),
+          if (style.photoCover)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 46, 24, 24),
+              child: MotionReveal(
+                child: Column(
+                  children: [
+                    _Flourish(color: style.accent),
+                    const SizedBox(height: 12),
+                    Text(
+                      'أهلًا وسهلًا بكم',
+                      textAlign: TextAlign.center,
+                      style: displayStyle(36, color: style.ink),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'يسعدنا حضوركم ومشاركتكم فرحتنا',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: style.ink),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           if (invitation.hasFamilies)
             _Section(
               style: style,
@@ -255,32 +308,61 @@ class _InvitationContentState extends State<InvitationContent> {
                 ],
               ),
             ),
-          _Section(
-            key: _details,
-            style: style,
-            title: 'موعد الزفاف',
-            icon: Icons.calendar_month_outlined,
-            child: Column(
-              children: [
-                Text(
-                  jordanDate(invitation.date),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: style.ink,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  '${jordanTime(invitation.date)} · بتوقيت الأردن',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: style.ink, fontSize: 13),
-                ),
-                const SizedBox(height: 22),
-                _Countdown(instant: invitation.instant, style: style),
-              ],
+          if (style.photoCover) ...[
+            _Section(
+              style: style,
+              title: 'الوقت المتبقي للزفاف',
+              icon: Icons.hourglass_bottom_rounded,
+              child: _Countdown(instant: invitation.instant, style: style),
             ),
-          ),
+            Padding(
+              key: _details,
+              padding: const EdgeInsets.fromLTRB(20, 30, 20, 13),
+              child: MotionReveal(
+                child: Text(
+                  'تفاصيل الحفل',
+                  textAlign: TextAlign.center,
+                  style: displayStyle(41, color: style.ink),
+                ),
+              ),
+            ),
+            _Section(
+              style: style,
+              title: 'التاريخ',
+              icon: Icons.calendar_month_outlined,
+              child: Text(
+                jordanDate(invitation.date),
+                textAlign: TextAlign.center,
+                style: TextStyle(color: style.ink),
+              ),
+            ),
+          ] else
+            _Section(
+              key: _details,
+              style: style,
+              title: 'موعد الزفاف',
+              icon: Icons.calendar_month_outlined,
+              child: Column(
+                children: [
+                  Text(
+                    jordanDate(invitation.date),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: style.ink,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    '${jordanTime(invitation.date)} · بتوقيت الأردن',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: style.ink, fontSize: 13),
+                  ),
+                  const SizedBox(height: 22),
+                  _Countdown(instant: invitation.instant, style: style),
+                ],
+              ),
+            ),
           if (invitation.location.isNotEmpty)
             _Section(
               style: style,
@@ -311,6 +393,17 @@ class _InvitationContentState extends State<InvitationContent> {
                 ],
               ),
             ),
+          if (style.photoCover)
+            _Section(
+              style: style,
+              title: 'وقت الحفل',
+              icon: Icons.schedule_rounded,
+              child: Text(
+                '${jordanTime(invitation.date)} · بتوقيت الأردن',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: style.ink),
+              ),
+            ),
           if (invitation.message.isNotEmpty)
             Padding(
               padding: const EdgeInsets.fromLTRB(22, 29, 22, 42),
@@ -320,6 +413,7 @@ class _InvitationContentState extends State<InvitationContent> {
                 style: displayStyle(28, color: style.ink, height: 1.45),
               ),
             ),
+          if (style.photoCover) const SizedBox(height: 30),
         ],
       ),
     );
@@ -349,17 +443,26 @@ class _Section extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) => Container(
-    decoration: BoxDecoration(
-      border: Border(
-        top: BorderSide(color: style.swatch.withValues(alpha: .48)),
-      ),
-    ),
-    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 34),
-    child: MotionReveal(
+  Widget build(BuildContext context) {
+    final iconWidget = Icon(
+      icon,
+      size: 21,
+      color: style.photoCover ? style.paper : style.accent,
+    );
+    final content = MotionReveal(
       child: Column(
         children: [
-          Icon(icon, size: 21, color: style.accent),
+          if (style.photoCover)
+            Container(
+              padding: const EdgeInsets.all(11),
+              decoration: BoxDecoration(
+                color: style.accent,
+                borderRadius: BorderRadius.circular(11),
+              ),
+              child: iconWidget,
+            )
+          else
+            iconWidget,
           const SizedBox(height: 10),
           Text(
             title,
@@ -370,8 +473,33 @@ class _Section extends StatelessWidget {
           child,
         ],
       ),
-    ),
-  );
+    );
+    if (style.photoCover) {
+      return Center(
+        child: Container(
+          width: double.infinity,
+          constraints: const BoxConstraints(maxWidth: 520),
+          margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 7),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 23),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: .65),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: style.swatch),
+          ),
+          child: content,
+        ),
+      );
+    }
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(
+          top: BorderSide(color: style.swatch.withValues(alpha: .48)),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 34),
+      child: content,
+    );
+  }
 }
 
 class _Family extends StatelessWidget {
@@ -523,18 +651,22 @@ class GuestPage extends StatelessWidget {
     required this.invitation,
     this.onChoose,
     this.preview = false,
+    this.onSignOut,
   });
   final Invitation invitation;
   final VoidCallback? onChoose;
   final bool preview;
+  final Future<void> Function()? onSignOut;
 
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: Color.lerp(invitation.style.paper, canvas, .16),
-    appBar: preview
+    appBar: preview || onSignOut != null
         ? AppBar(
-            title: const Text('معاينة الدعوة'),
+            title: Text(preview ? 'معاينة الدعوة' : 'وِصال'),
             actions: [
+              if (onSignOut case final signOut?)
+                SignOutButton(onSignOut: signOut),
               if (onChoose != null)
                 Padding(
                   padding: const EdgeInsetsDirectional.only(end: 15),
@@ -546,11 +678,18 @@ class GuestPage extends StatelessWidget {
             ],
           )
         : null,
-    body: SingleChildScrollView(
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 820),
-          child: InvitationContent(invitation: invitation),
+    body: LayoutBuilder(
+      builder: (context, viewport) => SingleChildScrollView(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: invitation.style.photoCover ? 1040 : 820,
+            ),
+            child: InvitationContent(
+              invitation: invitation,
+              viewportHeight: viewport.maxHeight,
+            ),
+          ),
         ),
       ),
     ),

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'drafts.dart';
 import 'editor.dart';
@@ -6,9 +6,11 @@ import 'invitation.dart';
 import 'invitation_view.dart';
 import 'motion.dart';
 import 'studio_theme.dart';
+import 'sign_in.dart';
 
 class Studio extends StatefulWidget {
-  const Studio({super.key, required this.drafts});
+  const Studio({super.key, required this.drafts, this.onSignOut});
+  final Future<void> Function()? onSignOut;
   final Drafts drafts;
 
   @override
@@ -91,6 +93,7 @@ class _StudioState extends State<Studio> {
                       compact: compact,
                       onBrowse: _browse,
                       onSaved: _saved,
+                      onSignOut: widget.onSignOut,
                     ),
                   ),
                 ),
@@ -142,10 +145,12 @@ class _Header extends StatelessWidget {
     required this.compact,
     required this.onBrowse,
     required this.onSaved,
+    this.onSignOut,
   });
   final bool compact;
   final VoidCallback onBrowse;
   final VoidCallback onSaved;
+  final Future<void> Function()? onSignOut;
 
   @override
   Widget build(BuildContext context) => SizedBox(
@@ -178,6 +183,10 @@ class _Header extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
           ),
         ),
+        if (onSignOut case final signOut?) ...[
+          const SizedBox(width: 5),
+          SignOutButton(onSignOut: signOut),
+        ],
       ],
     ),
   );

@@ -1,5 +1,7 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:wedding_project/drafts.dart';
 import 'package:wedding_project/invitation.dart';
 import 'package:wedding_project/invitation_view.dart';
@@ -55,6 +57,50 @@ void main() {
     expect(tester.widget<Opacity>(reduced).opacity, 1);
     await tester.pumpWidget(const SizedBox.shrink());
   });
+
+  testWidgets(
+    'invitation links require a session and sign-out locks them again',
+    (tester) async {
+      final sessions = StreamController<String?>(sync: true);
+      addTearDown(sessions.close);
+      final invitation = Invitation.example(InvitationStyle.olive);
+      await tester.pumpWidget(
+        AuthGate(
+          sessions: sessions.stream,
+          onSignIn: (email, password) async {
+            expect(email, 'guest@example.com');
+            expect(password, 'test-password');
+            sessions.add('guest');
+          },
+          onSignOut: () async => sessions.add(null),
+          onRetry: () {},
+          content: (signOut) => WisalApp(
+            drafts: Drafts(),
+            invitation: invitation,
+            onSignOut: signOut,
+          ),
+        ),
+      );
+      expect(find.byType(InvitationCover), findsNothing);
+      sessions.add(null);
+      await tester.pumpAndSettle();
+      expect(find.text('تسجيل الدخول'), findsOneWidget);
+      expect(find.byType(InvitationCover), findsNothing);
+
+      final fields = find.byType(TextFormField);
+      await tester.enterText(fields.at(0), 'guest@example.com');
+      await tester.enterText(fields.at(1), 'test-password');
+      await tester.tap(find.text('دخول'));
+      await tester.pumpAndSettle();
+      expect(find.byType(InvitationCover), findsOneWidget);
+
+      await tester.tap(find.byIcon(Icons.logout_rounded));
+      await tester.pumpAndSettle();
+      expect(find.text('تسجيل الدخول'), findsOneWidget);
+      expect(find.byType(InvitationCover), findsNothing);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
 
   test('guest link preserves Arabic details, location and Jordan time', () {
     const map = 'https://maps.app.goo.gl/test';
@@ -120,6 +166,43 @@ void main() {
     expect(cover.invitation.style, InvitationStyle.rose);
     await tester.pumpWidget(const SizedBox.shrink());
   });
+
+  testWidgets(
+    'photo templates fill the mobile viewport and link to event cards',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      for (final style in [
+        InvitationStyle.jasmine,
+        InvitationStyle.candlelight,
+      ]) {
+        final invitation = Invitation.example(style);
+        await tester.pumpWidget(
+          WisalApp(drafts: Drafts(), invitation: invitation),
+        );
+        await tester.pumpAndSettle();
+        expect(tester.getSize(find.byType(InvitationCover)).height, 844);
+        expect(find.text('الوقت المتبقي للزفاف'), findsOneWidget);
+        expect(find.text('التاريخ'), findsOneWidget);
+        expect(find.text('وقت الحفل'), findsOneWidget);
+
+        await tester.tap(find.widgetWithText(TextButton, 'تفاصيل الحفل'));
+        await tester.pumpAndSettle();
+        expect(
+          tester
+              .state<ScrollableState>(find.byType(Scrollable).first)
+              .position
+              .pixels,
+          greaterThan(844),
+        );
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox.shrink());
+      }
+    },
+  );
 
   testWidgets('guest invitation lays out on a narrow phone', (tester) async {
     tester.view.physicalSize = const Size(360, 780);

@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 
 enum InvitationStyle {
   olive(
@@ -29,6 +29,26 @@ enum InvitationStyle {
     Color(0xFF53332D),
     Color(0xFF884D53),
     Color(0xFFE5BFC1),
+  ),
+  jasmine(
+    'jasmine',
+    'مساء الياسمين',
+    'أزهار بيضاء ومدخل حجري عند الغروب',
+    Color(0xFFF6F4EF),
+    Color(0xFF243047),
+    Color(0xFF405775),
+    Color(0xFFC9D4E1),
+    photoCover: true,
+  ),
+  candlelight(
+    'candlelight',
+    'على ضوء الشموع',
+    'فوانيس ذهبية وأزهار عاجية',
+    Color(0xFFFAF2E8),
+    Color(0xFF442E24),
+    Color(0xFF815838),
+    Color(0xFFE5C5A5),
+    photoCover: true,
   );
 
   const InvitationStyle(
@@ -38,8 +58,9 @@ enum InvitationStyle {
     this.paper,
     this.ink,
     this.accent,
-    this.swatch,
-  );
+    this.swatch, {
+    this.photoCover = false,
+  });
 
   final String slug;
   final String title;
@@ -48,6 +69,7 @@ enum InvitationStyle {
   final Color ink;
   final Color accent;
   final Color swatch;
+  final bool photoCover;
 
   String get artwork => 'assets/images/$slug.webp';
 

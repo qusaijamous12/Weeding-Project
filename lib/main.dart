@@ -1,16 +1,17 @@
 import 'dart:async';
 
 import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'drafts.dart';
 import 'firebase_options.dart';
 import 'invitation.dart';
 import 'invitation_view.dart';
+import 'sign_in.dart';
 import 'studio.dart';
 import 'studio_theme.dart';
 
@@ -36,24 +37,25 @@ Future<void> main() async {
     }
   }
   runApp(
-    WisalApp(drafts: drafts, invitation: invitation, invalidLink: invalidLink),
+    _FirebaseEntry(
+      content: (onSignOut) => WisalApp(
+        drafts: drafts,
+        invitation: invitation,
+        invalidLink: invalidLink,
+        onSignOut: onSignOut,
+      ),
+    ),
   );
-  // Remote SDK loading must not prevent guests from opening their invitations.
-  unawaited(_initializeFirebase());
 }
 
-Future<void> _initializeFirebase() async {
-  if (!kIsWeb) return;
+Future<void> _initializeAnalytics(FirebaseApp app) async {
   try {
-    final app = await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
     final address = Uri.base;
     final analytics = FirebaseAnalytics.instanceFor(
       app: app,
       webOptions: {
         'config': {
-          // Guest URLs and page titles contain personal invitation details.
+          // Exclude personal invitation details encoded in guest URLs.
           'page_location': Uri(
             scheme: address.scheme,
             host: address.host,
@@ -73,16 +75,150 @@ Future<void> _initializeFirebase() async {
   }
 }
 
+class _FirebaseEntry extends StatefulWidget {
+  const _FirebaseEntry({required this.content});
+
+  final Widget Function(Future<void> Function() onSignOut) content;
+
+  @override
+  State<_FirebaseEntry> createState() => _FirebaseEntryState();
+}
+
+class _FirebaseEntryState extends State<_FirebaseEntry> {
+  late Future<FirebaseAuth> _firebase = _initialize();
+
+  Future<FirebaseAuth> _initialize() async {
+    final app = await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    ).timeout(const Duration(seconds: 15));
+    final auth = FirebaseAuth.instanceFor(app: app);
+    unawaited(_initializeAnalytics(app));
+    return auth;
+  }
+
+  void _retry() => setState(() => _firebase = _initialize());
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<FirebaseAuth>(
+    future: _firebase,
+    builder: (context, snapshot) {
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return _authShell(const _AuthLoading());
+      }
+      if (snapshot.hasError) {
+        return _authShell(_AuthUnavailable(onRetry: _retry));
+      }
+      final auth = snapshot.data;
+      if (auth == null) return _authShell(const _AuthLoading());
+      return AuthGate(
+        key: ObjectKey(auth),
+        sessions: auth.authStateChanges().map((user) => user?.uid),
+        onSignIn: (email, password) async {
+          await auth.signInWithEmailAndPassword(
+            email: email,
+            password: password,
+          );
+        },
+        onSignOut: auth.signOut,
+        onRetry: _retry,
+        content: widget.content,
+      );
+    },
+  );
+}
+
+class AuthGate extends StatelessWidget {
+  const AuthGate({
+    super.key,
+    required this.sessions,
+    required this.onSignIn,
+    required this.onSignOut,
+    required this.onRetry,
+    required this.content,
+  });
+
+  final Stream<String?> sessions;
+  final Future<void> Function(String email, String password) onSignIn;
+  final Future<void> Function() onSignOut;
+  final VoidCallback onRetry;
+  final Widget Function(Future<void> Function() onSignOut) content;
+
+  @override
+  Widget build(BuildContext context) => StreamBuilder<String?>(
+    stream: sessions,
+    builder: (context, snapshot) {
+      if (snapshot.hasError ||
+          snapshot.connectionState == ConnectionState.done) {
+        return _authShell(_AuthUnavailable(onRetry: onRetry));
+      }
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return _authShell(const _AuthLoading());
+      }
+      final userId = snapshot.data;
+      if (userId == null) {
+        return _authShell(SignInPage(onSignIn: onSignIn));
+      }
+      return KeyedSubtree(key: ValueKey(userId), child: content(onSignOut));
+    },
+  );
+}
+
+// Keep the sign-in view outside the app navigator so the guest URL is preserved.
+Widget _authShell(Widget content) => MaterialApp(
+  key: const ValueKey('authentication'),
+  title: 'وِصال | دعوات الزفاف',
+  debugShowCheckedModeBanner: false,
+  theme: studioTheme(),
+  locale: const Locale('ar', 'JO'),
+  supportedLocales: const [Locale('ar', 'JO')],
+  localizationsDelegates: GlobalMaterialLocalizations.delegates,
+  builder: (_, _) => Overlay.wrap(child: content),
+);
+
+class _AuthLoading extends StatelessWidget {
+  const _AuthLoading();
+
+  @override
+  Widget build(BuildContext context) => const Scaffold(
+    body: Center(
+      child: CircularProgressIndicator(
+        semanticsLabel: 'التحقق من تسجيل الدخول',
+      ),
+    ),
+  );
+}
+
+class _AuthUnavailable extends StatelessWidget {
+  const _AuthUnavailable({required this.onRetry});
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    body: Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('تعذّر الاتصال بخدمة تسجيل الدخول.'),
+          const SizedBox(height: 12),
+          FilledButton(onPressed: onRetry, child: const Text('إعادة المحاولة')),
+        ],
+      ),
+    ),
+  );
+}
+
 class WisalApp extends StatelessWidget {
   const WisalApp({
     super.key,
     required this.drafts,
     this.invitation,
     this.invalidLink = false,
+    this.onSignOut,
   });
   final Drafts drafts;
   final Invitation? invitation;
   final bool invalidLink;
+  final Future<void> Function()? onSignOut;
 
   @override
   Widget build(BuildContext context) => MaterialApp(
@@ -92,15 +228,21 @@ class WisalApp extends StatelessWidget {
     locale: const Locale('ar', 'JO'),
     supportedLocales: const [Locale('ar', 'JO')],
     localizationsDelegates: GlobalMaterialLocalizations.delegates,
-    routes: {'/': (_) => Studio(drafts: drafts)},
+    routes: {'/': (_) => Studio(drafts: drafts, onSignOut: onSignOut)},
     onGenerateInitialRoutes: invitation != null || invalidLink
         ? (routeName) => [
             MaterialPageRoute<void>(
               settings: RouteSettings(name: routeName),
               builder: (_) => switch (invitation) {
-                final invite? => GuestPage(invitation: invite),
-                null => const Scaffold(
-                  body: Center(child: Text('رابط الدعوة غير صالح.')),
+                final invite? => GuestPage(
+                  invitation: invite,
+                  onSignOut: onSignOut,
+                ),
+                null => Scaffold(
+                  appBar: onSignOut == null
+                      ? null
+                      : AppBar(actions: [SignOutButton(onSignOut: onSignOut!)]),
+                  body: const Center(child: Text('رابط الدعوة غير صالح.')),
                 ),
               },
             ),

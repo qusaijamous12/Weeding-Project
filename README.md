@@ -31,6 +31,8 @@ flutter build web --no-web-resources-cdn
 
 تُستخدم عناوين صفحات عامة في Analytics لحماية بيانات الدعوة الموجودة في الرابط والعنوان. يمكن متابعة الزيارات من Analytics في Firebase Console.
 
+يتطلب المعرض والمحرّر وروابط الدعوات تسجيل الدخول بالبريد الإلكتروني وكلمة المرور. لإتاحة الدخول، أضف حسابًا من **Authentication → Users → Add user** في Firebase Console.
+
 حفظ المسودات الحالي محلي في المتصفح. مزامنة الدعوات بين الأجهزة تتطلب إضافة Firestore وتحديد تسجيل الدخول وقواعد الوصول.
 
 [إعداد Firebase مع Flutter](https://firebase.google.com/docs/flutter/setup)
