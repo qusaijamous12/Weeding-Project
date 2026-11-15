@@ -49,6 +49,36 @@ enum InvitationStyle {
     Color(0xFF815838),
     Color(0xFFE5C5A5),
     photoCover: true,
+  ),
+  ivoryArches(
+    'ivory-arches',
+    'أقواس عاجية',
+    'طبقات ورق عاجية بتصميم معماري',
+    Color(0xFFFAF3E5),
+    Color(0xFF372B23),
+    Color(0xFF7D5635),
+    Color(0xFFE4CFAD),
+    modernCover: true,
+  ),
+  burgundySatin(
+    'burgundy-satin',
+    'حرير خمري',
+    'حرير خمري ولمسات وردية دافئة',
+    Color(0xFFFFF1EF),
+    Color(0xFF431620),
+    Color(0xFF84374E),
+    Color(0xFFE0A9B5),
+    modernCover: true,
+  ),
+  mistBlue(
+    'mist-blue',
+    'ضوء أزرق',
+    'أزرق ضبابي وظلال أغصان ناعمة',
+    Color(0xFFEAF3F9),
+    Color(0xFF203B56),
+    Color(0xFF385C7F),
+    Color(0xFFB9D1E2),
+    modernCover: true,
   );
 
   const InvitationStyle(
@@ -60,6 +90,7 @@ enum InvitationStyle {
     this.accent,
     this.swatch, {
     this.photoCover = false,
+    this.modernCover = false,
   });
 
   final String slug;
@@ -70,11 +101,29 @@ enum InvitationStyle {
   final Color accent;
   final Color swatch;
   final bool photoCover;
+  final bool modernCover;
 
   String get artwork => 'assets/images/$slug.webp';
 
   static InvitationStyle fromSlug(Object? slug) =>
       values.firstWhere((style) => style.slug == slug, orElse: () => olive);
+}
+
+enum InvitationMusic {
+  softKeys('soft-keys', 'بيانو هادئ'),
+  warmStrings('warm-strings', 'أوتار دافئة');
+
+  const InvitationMusic(this.id, this.title);
+
+  final String id;
+  final String title;
+
+  static InvitationMusic? fromId(Object? id) {
+    for (final track in values) {
+      if (track.id == id) return track;
+    }
+    return null;
+  }
 }
 
 class Invitation {
@@ -91,6 +140,7 @@ class Invitation {
     required this.city,
     this.mapLink = '',
     this.message = '',
+    this.music,
   });
 
   final InvitationStyle style;
@@ -106,6 +156,7 @@ class Invitation {
   final String city;
   final String mapLink;
   final String message;
+  final InvitationMusic? music;
 
   static const jordanOffset = Duration(hours: 3);
   DateTime get instant => date.subtract(jordanOffset);
@@ -164,6 +215,7 @@ class Invitation {
     'city': city,
     'mapLink': mapLink,
     'message': message,
+    if (music case final track?) 'music': track.id,
   };
 
   static Invitation? fromJson(Object? source) {
@@ -188,6 +240,7 @@ class Invitation {
       city: read('city'),
       mapLink: read('mapLink', limit: 500),
       message: read('message', limit: 280),
+      music: InvitationMusic.fromId(source['music']),
     );
   }
 

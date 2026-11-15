@@ -1,9 +1,11 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'invitation.dart';
+import 'invitation_music_button.dart';
 import 'motion.dart';
 import 'studio_theme.dart';
 
@@ -24,9 +26,14 @@ class InvitationCover extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final style = invitation.style;
-    final coverInk = style.photoCover ? const Color(0xFFFFFBF1) : style.ink;
+    final burgundy = style == InvitationStyle.burgundySatin;
+    final coverInk = style.photoCover || burgundy
+        ? const Color(0xFFFFFBF1)
+        : style.ink;
     final coverAccent = style.photoCover
         ? const Color(0xFFFFE8BE)
+        : burgundy
+        ? style.swatch
         : style.accent;
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -50,7 +57,11 @@ class InvitationCover extends StatelessWidget {
             children: [
               Positioned.fill(
                 child: ColoredBox(
-                  color: style.photoCover ? ink : style.paper,
+                  color: burgundy
+                      ? style.ink
+                      : style.photoCover
+                      ? ink
+                      : style.paper,
                   child: AnimatedSwitcher(
                     duration: reduceMotion(context)
                         ? Duration.zero
@@ -97,7 +108,16 @@ class InvitationCover extends StatelessWidget {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (style == InvitationStyle.night)
+                      if (style.modernCover)
+                        SizedBox(
+                          width: thumbnail ? 27 : 44,
+                          child: Divider(
+                            color: coverAccent,
+                            height: 1,
+                            thickness: 1,
+                          ),
+                        )
+                      else if (style == InvitationStyle.night)
                         Seal(color: coverAccent, size: thumbnail ? 25 : 43)
                       else
                         _Flourish(color: coverAccent),
@@ -111,7 +131,7 @@ class InvitationCover extends StatelessWidget {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      if (!thumbnail) ...[
+                      if (!thumbnail && !style.modernCover) ...[
                         const SizedBox(height: 12),
                         Text(
                           'بكل محبة ندعوكم لمشاركتنا فرحة زفافنا',
@@ -125,7 +145,9 @@ class InvitationCover extends StatelessWidget {
                       ],
                       SizedBox(height: thumbnail ? 7 : 17),
                       Wrap(
-                        direction: !thumbnail && style == InvitationStyle.night
+                        direction:
+                            !thumbnail &&
+                                (style == InvitationStyle.night || burgundy)
                             ? Axis.vertical
                             : Axis.horizontal,
                         alignment: WrapAlignment.center,
@@ -173,10 +195,12 @@ class InvitationCover extends StatelessWidget {
                           label: const Text('تفاصيل الحفل'),
                           style: TextButton.styleFrom(
                             foregroundColor: coverInk,
-                            backgroundColor: style.photoCover
+                            backgroundColor: burgundy
+                                ? style.ink.withValues(alpha: .78)
+                                : style.photoCover
                                 ? const Color(0x440A1014)
                                 : style.paper.withValues(alpha: .78),
-                            side: style.photoCover
+                            side: style.photoCover || burgundy
                                 ? const BorderSide(color: Color(0x88FFFBF1))
                                 : null,
                           ),
@@ -652,6 +676,14 @@ class GuestPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: Color.lerp(invitation.style.paper, canvas, .16),
+    floatingActionButton: switch (invitation.music) {
+      final track? when kIsWeb => InvitationMusicButton(
+        key: ValueKey((track, preview)),
+        track: track,
+        autoplay: !preview,
+      ),
+      _ => null,
+    },
     appBar: preview
         ? AppBar(
             title: const Text('معاينة الدعوة'),

@@ -12,10 +12,13 @@ service cloud.firestore {
     function validInvitation(data) {
       return data.keys().hasOnly([
           'v', 'style', 'groom', 'bride', 'groomFather', 'groomMother',
-          'brideFather', 'brideMother', 'date', 'venue', 'city', 'mapLink', 'message'
+          'brideFather', 'brideMother', 'date', 'venue', 'city', 'mapLink', 'message', 'music'
         ])
         && data.v == 1
-        && data.style in ['olive', 'night', 'rose', 'jasmine', 'candlelight']
+        && data.style in [
+          'olive', 'night', 'rose', 'jasmine', 'candlelight',
+          'ivory-arches', 'burgundy-satin', 'mist-blue'
+        ]
         && data.groom is string && data.groom.size() > 0 && data.groom.size() <= 1024
         && data.bride is string && data.bride.size() > 0 && data.bride.size() <= 1024
         && data.groomFather is string && data.groomFather.size() <= 1024
@@ -26,7 +29,8 @@ service cloud.firestore {
         && data.venue is string && data.venue.size() > 0 && data.venue.size() <= 1024
         && data.city is string && data.city.size() > 0 && data.city.size() <= 1024
         && data.mapLink is string && data.mapLink.size() <= 4096
-        && data.message is string && data.message.size() <= 4096;
+        && data.message is string && data.message.size() <= 4096
+        && (!('music' in data) || data.music in ['soft-keys', 'warm-strings']);
     }
   }
 }

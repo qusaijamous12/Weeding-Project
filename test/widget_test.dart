@@ -129,6 +129,30 @@ void main() {
     );
   });
 
+  test('invitation music is optional and survives serialization', () {
+    final original = Invitation.example(InvitationStyle.jasmine).toJson();
+    expect(original.containsKey('music'), isFalse);
+    expect(Invitation.fromJson(original)!.music, isNull);
+
+    for (final track in InvitationMusic.values) {
+      final saved = {...original, 'music': track.id};
+      final invitation = Invitation.fromJson(saved)!;
+      expect(invitation.music, track);
+      expect(invitation.toJson(), saved);
+      expect(
+        Invitation.fromLink(
+          invitation.shareUri(Uri.parse('https://example.com/')),
+        )!.music,
+        track,
+      );
+    }
+
+    expect(
+      Invitation.fromJson({...original, 'music': 'unknown'})!.music,
+      isNull,
+    );
+  });
+
   testWidgets('gallery opens a reusable design and updates the guest preview', (
     tester,
   ) async {
@@ -218,5 +242,31 @@ void main() {
     expect(find.text('مكان الحفل'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('modern designs survive sharing and render on a narrow phone', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 780);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    for (final style in InvitationStyle.values.where(
+      (style) => style.modernCover,
+    )) {
+      final sample = Invitation.example(style);
+      final restored = Invitation.fromLink(
+        sample.shareUri(Uri.parse('https://example.com/')),
+      )!;
+      expect(restored.style, style);
+      await tester.pumpWidget(WisalApp(drafts: Drafts(), invitation: restored));
+      await tester.pumpAndSettle();
+      expect(find.text('عمر'), findsOneWidget);
+      expect(find.text('ليان'), findsOneWidget);
+      expect(find.text('تفاصيل الحفل'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    }
   });
 }

@@ -46,6 +46,7 @@ class _EditorState extends State<Editor> {
   late final Map<_Field, TextEditingController> _fields;
   late final String _draftId;
   late InvitationStyle _style;
+  InvitationMusic? _music;
   late DateTime _date;
   bool _publishing = false;
 
@@ -56,6 +57,7 @@ class _EditorState extends State<Editor> {
     _draftId =
         widget.draftId ?? DateTime.now().microsecondsSinceEpoch.toString();
     _style = initial.style;
+    _music = initial.music;
     _date = initial.date;
     _fields = {
       _Field.groom: TextEditingController(text: initial.groom),
@@ -93,6 +95,7 @@ class _EditorState extends State<Editor> {
     city: _value(_Field.city),
     mapLink: _value(_Field.mapLink),
     message: _value(_Field.message),
+    music: _music,
     date: _date,
   );
 
@@ -353,6 +356,28 @@ class _EditorState extends State<Editor> {
           _section('مكان الحفل', [
             _pair(_field(_Field.venue), _field(_Field.city)),
             _field(_Field.mapLink),
+          ]),
+          _section('موسيقى الدعوة · اختياري', [
+            Wrap(
+              spacing: 8,
+              runSpacing: 7,
+              children: [
+                ChoiceChip(
+                  label: const Text('بدون موسيقى'),
+                  selected: _music == null,
+                  onSelected: (_) => setState(() => _music = null),
+                ),
+                for (final track in InvitationMusic.values)
+                  ChoiceChip(
+                    label: Text(track.title),
+                    selected: _music == track,
+                    onSelected: (_) => setState(() => _music = track),
+                  ),
+              ],
+            ),
+            const Text(
+              'جرّبوا المقطع في «معاينة كضيف». يبدأ عند فتح الدعوة أو عند أول لمسة إذا منع المتصفح التشغيل التلقائي.',
+            ),
           ]),
           _field(_Field.message),
           const SizedBox(height: 24),
