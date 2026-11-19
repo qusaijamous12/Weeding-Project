@@ -381,26 +381,38 @@ class _Gallery extends StatelessWidget {
             style: TextStyle(fontSize: 14, color: muted, height: 1.7),
           ),
           const SizedBox(height: 22),
-          Wrap(
-            spacing: 20,
-            runSpacing: 20,
-            children: [
-              for (final style in InvitationStyle.values)
-                SizedBox(
-                  width: width,
-                  child: MotionReveal(
-                    delay: Duration(milliseconds: style.index * 90),
-                    child: HoverLift(
-                      child: _TemplateCard(
-                        style: style,
-                        onPreview: () => onPreview(style),
-                        onChoose: () => onChoose(style),
+          for (final collection
+              in InvitationStyle.values
+                  .map((style) => style.collection)
+                  .toSet()) ...[
+            Padding(
+              padding: const EdgeInsets.only(top: 12, bottom: 18),
+              child: Text(collection, style: displayStyle(32)),
+            ),
+            Wrap(
+              spacing: 20,
+              runSpacing: 20,
+              children: [
+                for (final style in InvitationStyle.values.where(
+                  (style) => style.collection == collection,
+                ))
+                  SizedBox(
+                    width: width,
+                    child: MotionReveal(
+                      delay: Duration(milliseconds: style.index * 90),
+                      child: HoverLift(
+                        child: _TemplateCard(
+                          style: style,
+                          onPreview: () => onPreview(style),
+                          onChoose: () => onChoose(style),
+                        ),
                       ),
                     ),
                   ),
-                ),
-            ],
-          ),
+              ],
+            ),
+            const SizedBox(height: 25),
+          ],
         ],
       );
     },

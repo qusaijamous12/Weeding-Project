@@ -9,10 +9,12 @@ class InvitationMusicButton extends StatefulWidget {
     super.key,
     required this.track,
     required this.autoplay,
+    this.showAutoplayHint = true,
   });
 
   final InvitationMusic track;
   final bool autoplay;
+  final bool showAutoplayHint;
 
   @override
   State<InvitationMusicButton> createState() => _InvitationMusicButtonState();
@@ -82,7 +84,9 @@ class _InvitationMusicButtonState extends State<InvitationMusicButton> {
   @override
   Widget build(BuildContext context) {
     if (widget.autoplay) {
-      if (_loading || _playing) return const SizedBox.shrink();
+      if (_loading || _playing || !widget.showAutoplayHint) {
+        return const SizedBox.shrink();
+      }
       return TextButton(
         onPressed: () => _play(reportFailure: true),
         style: TextButton.styleFrom(

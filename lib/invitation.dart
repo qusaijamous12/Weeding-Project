@@ -79,6 +79,36 @@ enum InvitationStyle {
     Color(0xFF385C7F),
     Color(0xFFB9D1E2),
     modernCover: true,
+  ),
+  pearlLace(
+    'pearl-lace',
+    'لؤلؤ ودانتيل',
+    'بوابة لؤلؤية وستائر عاجية مضيئة',
+    Color(0xFFF8EEE4),
+    Color(0xFF563C32),
+    Color(0xFF886750),
+    Color(0xFFDCC6AC),
+    ceremony: true,
+  ),
+  champagneRose(
+    'champagne-rose',
+    'ورد الشامبانيا',
+    'ورود ناعمة وأقواس بلون الشامبانيا',
+    Color(0xFFFAEFEC),
+    Color(0xFF623F42),
+    Color(0xFF976870),
+    Color(0xFFE2C4C8),
+    ceremony: true,
+  ),
+  sageGarden(
+    'sage-garden',
+    'حديقة المريمية',
+    'ياسمين أبيض وستائر خضراء هادئة',
+    Color(0xFFF0F3EB),
+    Color(0xFF354A3D),
+    Color(0xFF60745E),
+    Color(0xFFCDD8C4),
+    ceremony: true,
   );
 
   const InvitationStyle(
@@ -91,6 +121,7 @@ enum InvitationStyle {
     this.swatch, {
     this.photoCover = false,
     this.modernCover = false,
+    this.ceremony = false,
   });
 
   final String slug;
@@ -102,8 +133,16 @@ enum InvitationStyle {
   final Color swatch;
   final bool photoCover;
   final bool modernCover;
+  final bool ceremony;
+
+  String get collection => ceremony
+      ? 'مجموعة المراسم'
+      : modernCover
+      ? 'المجموعة المودرن'
+      : 'المجموعة الكلاسيكية';
 
   String get artwork => 'assets/images/$slug.webp';
+  String get doorsArtwork => 'assets/images/$slug-doors.webp';
 
   static InvitationStyle fromSlug(Object? slug) =>
       values.firstWhere((style) => style.slug == slug, orElse: () => olive);
@@ -141,6 +180,12 @@ class Invitation {
     this.mapLink = '',
     this.message = '',
     this.music,
+    this.address = '',
+    this.endDate,
+    this.rsvpPhone = '',
+    this.venueImageUrl = '',
+    this.groomFamily = '',
+    this.brideFamily = '',
   });
 
   final InvitationStyle style;
@@ -157,12 +202,59 @@ class Invitation {
   final String mapLink;
   final String message;
   final InvitationMusic? music;
+  final String address;
+  final DateTime? endDate;
+  final String rsvpPhone;
+  final String venueImageUrl;
+  final String groomFamily;
+  final String brideFamily;
+
+  bool get hasHostingFamilies =>
+      groomFamily.isNotEmpty || brideFamily.isNotEmpty;
+
+  static String normalizeRsvpPhone(String value) {
+    var phone = westernDigits(value.trim()).replaceAll(RegExp(r'[\s()+-]'), '');
+    if (phone.startsWith('00')) phone = phone.substring(2);
+    if (RegExp(r'^07[789][0-9]{7}$').hasMatch(phone)) {
+      phone = '962${phone.substring(1)}';
+    }
+    return RegExp(r'^[1-9][0-9]{7,14}$').hasMatch(phone) ? phone : '';
+  }
+
+  Uri rsvpUri({
+    required String name,
+    required bool attending,
+    required int guests,
+    String note = '',
+  }) {
+    final phone = normalizeRsvpPhone(rsvpPhone);
+    if (phone.isEmpty) throw StateError('No RSVP phone configured');
+    if (name.trim().isEmpty || guests < 1 || guests > 20) {
+      throw ArgumentError('Invalid RSVP details');
+    }
+    return Uri.https('wa.me', '/$phone', {
+      'text': [
+        'رد على دعوة زفاف $couple',
+        'الاسم: ${name.trim()}',
+        attending ? 'نتشرف بالحضور' : 'نعتذر عن الحضور',
+        if (attending) 'عدد الضيوف: $guests',
+        if (note.trim().isNotEmpty) 'رسالة للعروسين: ${note.trim()}',
+      ].join('\n'),
+    });
+  }
 
   static const jordanOffset = Duration(hours: 3);
   DateTime get instant => date.subtract(jordanOffset);
   String get couple => '$groom و$bride';
   String get location =>
       [venue, city].where((value) => value.isNotEmpty).join('، ');
+  String get timeLabel {
+    final end = endDate;
+    if (end == null) return jordanTime(date);
+    return 'من ${jordanTime(date)} إلى ${jordanTime(end)}'
+        '${end.day != date.day ? ' في اليوم التالي' : ''}';
+  }
+
   bool get hasFamilies => [
     groomFather,
     groomMother,
@@ -182,6 +274,8 @@ class Invitation {
       groomMother: 'منى الحسن',
       brideFather: 'أحمد النجار',
       brideMother: 'هناء الخطيب',
+      groomFamily: 'آل العبدالله',
+      brideFamily: 'آل النجار',
       date: DateTime.utc(upcoming.year, upcoming.month, upcoming.day, 19),
       venue: 'قاعة الياسمين',
       city: 'عمّان',
@@ -216,6 +310,12 @@ class Invitation {
     'mapLink': mapLink,
     'message': message,
     if (music case final track?) 'music': track.id,
+    if (address.isNotEmpty) 'address': address,
+    if (endDate case final end?) 'endDate': end.toIso8601String(),
+    if (rsvpPhone.isNotEmpty) 'rsvpPhone': rsvpPhone,
+    if (venueImageUrl.isNotEmpty) 'venueImageUrl': venueImageUrl,
+    if (groomFamily.isNotEmpty) 'groomFamily': groomFamily,
+    if (brideFamily.isNotEmpty) 'brideFamily': brideFamily,
   };
 
   static Invitation? fromJson(Object? source) {
@@ -227,6 +327,7 @@ class Invitation {
 
     final date = DateTime.tryParse(read('date'));
     if (date == null || !date.isUtc) return null;
+    final parsedEnd = DateTime.tryParse(read('endDate', limit: 40));
     return Invitation(
       style: InvitationStyle.fromSlug(source['style']),
       groom: read('groom'),
@@ -241,6 +342,14 @@ class Invitation {
       mapLink: read('mapLink', limit: 500),
       message: read('message', limit: 280),
       music: InvitationMusic.fromId(source['music']),
+      address: read('address', limit: 240),
+      endDate: parsedEnd != null && parsedEnd.isUtc && parsedEnd.isAfter(date)
+          ? parsedEnd
+          : null,
+      rsvpPhone: normalizeRsvpPhone(read('rsvpPhone', limit: 40)),
+      venueImageUrl: read('venueImageUrl', limit: 500),
+      groomFamily: read('groomFamily'),
+      brideFamily: read('brideFamily'),
     );
   }
 
@@ -281,7 +390,11 @@ class Invitation {
     if (location.isEmpty) return null;
     return Uri.https('www.google.com', '/maps/search/', {
       'api': '1',
-      'query': '$location، الأردن',
+      'query': [
+        location,
+        address,
+        'الأردن',
+      ].where((part) => part.isNotEmpty).join('، '),
     });
   }
 }
@@ -317,6 +430,16 @@ String arabicDigits(Object value) {
     RegExp('[0-9]'),
     (match) => digits[int.parse(match[0]!)],
   );
+}
+
+String westernDigits(String value) {
+  const eastern = '٠١٢٣٤٥٦٧٨٩';
+  const persian = '۰۱۲۳۴۵۶۷۸۹';
+  return value.replaceAllMapped(RegExp('[٠-٩۰-۹]'), (match) {
+    final digit = match[0]!;
+    final index = eastern.indexOf(digit);
+    return (index < 0 ? persian.indexOf(digit) : index).toString();
+  });
 }
 
 String jordanDate(DateTime date, {bool includeDay = true}) =>

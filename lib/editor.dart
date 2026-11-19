@@ -11,6 +11,8 @@ import 'studio_theme.dart';
 enum _Field {
   groom('اسم العريس', requiredForSharing: true),
   bride('اسم العروس', requiredForSharing: true),
+  groomFamily('اسم عائلة العريس'),
+  brideFamily('اسم عائلة العروس'),
   groomFather('اسم والد العريس'),
   groomMother('اسم والدة العريس'),
   brideFather('اسم والد العروس'),
@@ -18,6 +20,9 @@ enum _Field {
   venue('اسم القاعة', requiredForSharing: true),
   city('المدينة', requiredForSharing: true),
   mapLink('رابط الموقع على الخريطة', limit: 500),
+  address('العنوان التفصيلي · اختياري', limit: 240),
+  venueImageUrl('رابط صورة القاعة · اختياري', limit: 500),
+  rsvpPhone('رقم واتساب لاستقبال ردود الحضور · اختياري', limit: 40),
   message('كلمة ختامية', limit: 280);
 
   const _Field(this.label, {this.limit = 120, this.requiredForSharing = false});
@@ -48,6 +53,7 @@ class _EditorState extends State<Editor> {
   late InvitationStyle _style;
   InvitationMusic? _music;
   late DateTime _date;
+  TimeOfDay? _endTime;
   bool _publishing = false;
 
   @override
@@ -59,9 +65,14 @@ class _EditorState extends State<Editor> {
     _style = initial.style;
     _music = initial.music;
     _date = initial.date;
+    _endTime = initial.endDate == null
+        ? null
+        : TimeOfDay.fromDateTime(initial.endDate!);
     _fields = {
       _Field.groom: TextEditingController(text: initial.groom),
       _Field.bride: TextEditingController(text: initial.bride),
+      _Field.groomFamily: TextEditingController(text: initial.groomFamily),
+      _Field.brideFamily: TextEditingController(text: initial.brideFamily),
       _Field.groomFather: TextEditingController(text: initial.groomFather),
       _Field.groomMother: TextEditingController(text: initial.groomMother),
       _Field.brideFather: TextEditingController(text: initial.brideFather),
@@ -70,6 +81,9 @@ class _EditorState extends State<Editor> {
       _Field.city: TextEditingController(text: initial.city),
       _Field.mapLink: TextEditingController(text: initial.mapLink),
       _Field.message: TextEditingController(text: initial.message),
+      _Field.address: TextEditingController(text: initial.address),
+      _Field.rsvpPhone: TextEditingController(text: initial.rsvpPhone),
+      _Field.venueImageUrl: TextEditingController(text: initial.venueImageUrl),
     };
   }
 
@@ -97,7 +111,36 @@ class _EditorState extends State<Editor> {
     message: _value(_Field.message),
     music: _music,
     date: _date,
+    address: _value(_Field.address),
+    rsvpPhone: Invitation.normalizeRsvpPhone(_value(_Field.rsvpPhone)),
+    endDate: _endDate,
+    venueImageUrl: _value(_Field.venueImageUrl),
+    groomFamily: _value(_Field.groomFamily),
+    brideFamily: _value(_Field.brideFamily),
   );
+
+  DateTime? get _endDate {
+    final time = _endTime;
+    if (time == null) return null;
+    final end = DateTime.utc(
+      _date.year,
+      _date.month,
+      _date.day,
+      time.hour,
+      time.minute,
+    );
+    return end.isAfter(_date) ? end : end.add(const Duration(days: 1));
+  }
+
+  Future<void> _pickEndTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime:
+          _endTime ??
+          TimeOfDay.fromDateTime(_date.add(const Duration(hours: 3))),
+    );
+    if (picked != null && mounted) setState(() => _endTime = picked);
+  }
 
   Future<void> _pickDate() async {
     final first = DateTime(_date.year < 2000 ? _date.year : 2000);
@@ -244,15 +287,26 @@ class _EditorState extends State<Editor> {
   Widget _field(_Field field) {
     return TextFormField(
       controller: _fields[field],
-      textDirection: field == _Field.mapLink ? TextDirection.ltr : null,
-      keyboardType: field == _Field.mapLink
+      textDirection:
+          field == _Field.mapLink ||
+              field == _Field.rsvpPhone ||
+              field == _Field.venueImageUrl
+          ? TextDirection.ltr
+          : null,
+      keyboardType: field == _Field.rsvpPhone
+          ? TextInputType.phone
+          : field == _Field.mapLink || field == _Field.venueImageUrl
           ? TextInputType.url
           : TextInputType.text,
       maxLines: field == _Field.message ? 2 : 1,
       inputFormatters: [LengthLimitingTextInputFormatter(field.limit)],
       decoration: InputDecoration(
         labelText: field.label,
-        hintText: field == _Field.mapLink ? 'https://maps.app.goo.gl/…' : null,
+        hintText: field == _Field.rsvpPhone
+            ? '079 123 4567'
+            : field == _Field.mapLink
+            ? 'https://maps.app.goo.gl/…'
+            : null,
       ),
       onChanged: (_) => setState(() {}),
       validator: (text) {
@@ -260,11 +314,17 @@ class _EditorState extends State<Editor> {
         if (field.requiredForSharing && value.isEmpty) {
           return 'هذا الحقل مطلوب للمشاركة';
         }
-        if (field == _Field.mapLink && value.isNotEmpty) {
+        if ((field == _Field.mapLink || field == _Field.venueImageUrl) &&
+            value.isNotEmpty) {
           final uri = Uri.tryParse(value);
           if (uri == null || uri.scheme != 'https' || uri.host.isEmpty) {
             return 'أدخلوا رابطًا يبدأ بـ https://';
           }
+        }
+        if (field == _Field.rsvpPhone &&
+            value.isNotEmpty &&
+            Invitation.normalizeRsvpPhone(value).isEmpty) {
+          return 'أدخلوا رقمًا أردنيًا أو رقمًا دوليًا مع رمز الدولة';
         }
         return null;
       },
@@ -332,6 +392,20 @@ class _EditorState extends State<Editor> {
               ],
             ),
           ]),
+          if (_style.ceremony)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 24),
+              child: Text(
+                'مجموعة المراسم · افتحوا «معاينة كضيف» لتجربة فتح البطاقة.',
+                style: TextStyle(color: _style.accent, height: 1.7),
+              ),
+            ),
+          _section('أسماء العائلات في بداية الدعوة · اختياري', [
+            _pair(_field(_Field.groomFamily), _field(_Field.brideFamily)),
+            const Text(
+              'اكتبوا الأسماء كما تفضّلون ظهورها، مثل «آل العبدالله» و«آل النجار».',
+            ),
+          ]),
           _section('أسماء العروسين', [
             _pair(_field(_Field.groom), _field(_Field.bride)),
           ]),
@@ -352,10 +426,39 @@ class _EditorState extends State<Editor> {
                 label: Text(jordanTime(_date)),
               ),
             ),
+            Wrap(
+              spacing: 8,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: _pickEndTime,
+                  icon: const Icon(Icons.more_time_rounded, size: 18),
+                  label: Text(
+                    _endDate == null
+                        ? 'إضافة وقت انتهاء الحفل'
+                        : 'ينتهي ${jordanTime(_endDate!)}',
+                  ),
+                ),
+                if (_endTime != null)
+                  TextButton(
+                    onPressed: () => setState(() => _endTime = null),
+                    child: const Text('حذف وقت الانتهاء'),
+                  ),
+              ],
+            ),
+            if (_endDate != null && _endDate!.day != _date.day)
+              const Text('وقت الانتهاء بعد منتصف الليل في اليوم التالي.'),
           ]),
           _section('مكان الحفل', [
             _pair(_field(_Field.venue), _field(_Field.city)),
             _field(_Field.mapLink),
+            _field(_Field.address),
+            if (_style.ceremony) _field(_Field.venueImageUrl),
+          ]),
+          _section('تأكيد الحضور عبر واتساب · اختياري', [
+            _field(_Field.rsvpPhone),
+            const Text(
+              'سيظهر للضيوف نموذج الاسم وعدد الحاضرين والرسالة. يفتح واتساب بردّ جاهز يرسله الضيف إلى هذا الرقم.',
+            ),
           ]),
           _section('موسيقى الدعوة · اختياري', [
             Wrap(

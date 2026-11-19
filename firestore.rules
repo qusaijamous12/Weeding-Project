@@ -12,12 +12,15 @@ service cloud.firestore {
     function validInvitation(data) {
       return data.keys().hasOnly([
           'v', 'style', 'groom', 'bride', 'groomFather', 'groomMother',
-          'brideFather', 'brideMother', 'date', 'venue', 'city', 'mapLink', 'message', 'music'
+          'brideFather', 'brideMother', 'date', 'venue', 'city', 'mapLink', 'message', 'music',
+          'address', 'endDate', 'rsvpPhone', 'venueImageUrl',
+          'groomFamily', 'brideFamily'
         ])
         && data.v == 1
         && data.style in [
           'olive', 'night', 'rose', 'jasmine', 'candlelight',
-          'ivory-arches', 'burgundy-satin', 'mist-blue'
+          'ivory-arches', 'burgundy-satin', 'mist-blue',
+          'pearl-lace', 'champagne-rose', 'sage-garden'
         ]
         && data.groom is string && data.groom.size() > 0 && data.groom.size() <= 1024
         && data.bride is string && data.bride.size() > 0 && data.bride.size() <= 1024
@@ -30,7 +33,13 @@ service cloud.firestore {
         && data.city is string && data.city.size() > 0 && data.city.size() <= 1024
         && data.mapLink is string && data.mapLink.size() <= 4096
         && data.message is string && data.message.size() <= 4096
-        && (!('music' in data) || data.music in ['soft-keys', 'warm-strings']);
+        && (!('music' in data) || data.music in ['soft-keys', 'warm-strings'])
+        && (!('address' in data) || (data.address is string && data.address.size() <= 1024))
+        && (!('endDate' in data) || (data.endDate is string && data.endDate.size() <= 40))
+        && (!('venueImageUrl' in data) || (data.venueImageUrl is string && data.venueImageUrl.size() <= 4096))
+        && (!('groomFamily' in data) || (data.groomFamily is string && data.groomFamily.size() <= 1024))
+        && (!('brideFamily' in data) || (data.brideFamily is string && data.brideFamily.size() <= 1024))
+        && (!('rsvpPhone' in data) || (data.rsvpPhone is string && data.rsvpPhone.matches('^[1-9][0-9]{7,14}$')));
     }
   }
 }

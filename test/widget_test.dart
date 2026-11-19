@@ -175,10 +175,17 @@ void main() {
     expect(find.text('تحرير الدعوة'), findsOneWidget);
     expect(find.widgetWithText(ChoiceChip, 'ليلة مخملية'), findsOneWidget);
 
-    final inputs = find.byType(TextFormField);
-    await tester.enterText(inputs.first, 'يزن');
-    await tester.enterText(inputs.at(1), 'سارة');
-    await tester.tap(find.widgetWithText(ChoiceChip, 'ورد الجوري'));
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'اسم العريس'),
+      'يزن',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'اسم العروس'),
+      'سارة',
+    );
+    final rose = find.widgetWithText(ChoiceChip, 'ورد الجوري');
+    await tester.ensureVisible(rose);
+    await tester.tap(rose);
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('معاينة كضيف'));
